@@ -28,7 +28,7 @@ def test_adk_discovery():
         from src.root_agent import root_agent as agent1
         print("✓ src.root_agent import: SUCCESS")
         capabilities = agent1.get_capabilities()
-        print(f"  Agent name: {capabilities['name']}")
+        print(f"  Agent name: {capabilities.get('name', 'No name')}")
     except Exception as e:
         print(f"✗ src.root_agent import: FAILED - {e}")
     
@@ -73,10 +73,11 @@ async def test_agent_functionality(agent):
     # Test capabilities
     try:
         capabilities = agent.get_capabilities()
-        print(f"✓ get_capabilities(): {capabilities['name']}")
-        print(f"  Agents available: {len(capabilities['agents'])}")
-        for agent_info in capabilities['agents']:
-            print(f"    - {agent_info['name']} ({agent_info['subject']})")
+        name = capabilities.get('name', 'Unknown Agent')
+        print(f"✓ get_capabilities(): {name}")
+        print(f"  Agents available: {len(capabilities.get('agents', []))}")
+        for agent_info in capabilities.get('agents', []):
+            print(f"    - {agent_info.get('name', 'Unknown')} ({agent_info.get('subject', 'Unknown')})")
     except Exception as e:
         print(f"✗ get_capabilities() failed: {e}")
     
