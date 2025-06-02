@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Multi-Agent Educational System: Mathematics, Science, and Music education with specialized routing."""
+"""Multi-Agent Educational System: Mathematics, Science, Music, and English education with specialized routing."""
 
 from google.adk.agents import LlmAgent
 from google.adk.tools.agent_tool import AgentTool
@@ -21,6 +21,7 @@ from .adk_educator import prompt
 from .adk_educator.sub_agents.math_agent import math_agent
 from .adk_educator.sub_agents.science_agent import science_agent
 from .adk_educator.sub_agents.music_agent import music_agent
+from .adk_educator.sub_agents.english_agent import english_agent
 
 MODEL = "gemini-2.5-flash-preview-05-20"
 
@@ -29,7 +30,7 @@ educational_coordinator = LlmAgent(
     name="educational_coordinator",
     model=MODEL,
     description=(
-        "Coordinating educational support across mathematics, science, and music, "
+        "Coordinating educational support across mathematics, science, music, and English, "
         "routing student questions to specialized agents, and providing "
         "comprehensive learning assistance"
     ),
@@ -39,6 +40,7 @@ educational_coordinator = LlmAgent(
         AgentTool(agent=math_agent),
         AgentTool(agent=science_agent),
         AgentTool(agent=music_agent),
+        AgentTool(agent=english_agent),
     ],
 )
 

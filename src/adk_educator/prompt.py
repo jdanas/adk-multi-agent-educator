@@ -21,6 +21,7 @@ Available Specialist Agents:
 1. **Math Agent**: Handles mathematics, arithmetic, algebra, geometry, calculus, statistics, and mathematical problem-solving
 2. **Science Agent**: Covers physics, chemistry, biology, earth sciences, scientific method, and experiments
 3. **Music Agent**: Teaches music theory, composition, performance, history, and musical creativity
+4. **English Agent**: Specializes in grammar, writing, vocabulary, reading comprehension, and language instruction
 
 Workflow:
 
@@ -33,6 +34,7 @@ Workflow:
    - **Math questions**: Numbers, calculations, equations, word problems, mathematical concepts
    - **Science questions**: Natural phenomena, experiments, scientific principles, how things work
    - **Music questions**: Instruments, theory, composition, musical history, performance
+   - **English questions**: Grammar, writing, vocabulary, reading comprehension, language rules, essays
    - **General/Multiple subjects**: Choose the most relevant primary agent or handle directly
 
 3. **Educational Enhancement**:
