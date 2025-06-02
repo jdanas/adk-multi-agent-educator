@@ -130,14 +130,24 @@ class RootAgent:
             # Process the request
             if subject_enum:
                 # Route to specific agent
+                logger.info(f"🎯 Routing {subject_enum.value} question to specialized agent")
                 response = await self.session_manager.process_student_request(request)
-                return f"**{response.agent_name}** (Confidence: {response.confidence_score:.1%})\n\n{response.response_text}"
+                
+                # Enhanced response with clear agent identification
+                agent_emoji = {
+                    "Professor Mathematics": "🔢",
+                    "Dr. Science Explorer": "🔬", 
+                    "Maestro Harmony": "🎵"
+                }.get(response.agent_name, "🤖")
+                
+                return f"{agent_emoji} **{response.agent_name}** (Confidence: {response.confidence_score:.1%})\n\n{response.response_text}\n\n---\n*Specialized {subject_enum.value.title()} Agent Response*"
             else:
                 # Use coordinator for interdisciplinary questions - involve all subjects
+                logger.info("🔄 Interdisciplinary question detected - consulting all specialized agents")
                 involving_subjects = [SubjectType.MATH, SubjectType.SCIENCE, SubjectType.MUSIC]
                 response = await self.coordinator.process_complex_query(request, involving_subjects)
                 
-                return f"**{response.agent_name}** (Confidence: {response.confidence_score:.1%})\n\n{response.response_text}"
+                return f"🎓 **{response.agent_name}** (Confidence: {response.confidence_score:.1%})\n\n{response.response_text}\n\n---\n*Multi-Agent Collaborative Response (Math 🔢 + Science 🔬 + Music 🎵)*"
                     
         except Exception as e:
             logger.error(f"Error processing message: {e}")
@@ -158,7 +168,10 @@ class RootAgent:
         # Math keywords
         math_keywords = ['math', 'equation', 'solve', 'calculate', 'algebra', 'geometry', 
                         'calculus', 'trigonometry', 'statistics', 'number', 'formula',
-                        'fraction', 'decimal', 'percentage', 'graph', 'derivative']
+                        'fraction', 'decimal', 'percentage', 'graph', 'derivative',
+                        '+', '-', '*', '/', '=', 'plus', 'minus', 'times', 'divided',
+                        'add', 'subtract', 'multiply', 'divide', 'sum', 'difference',
+                        'x^', 'squared', 'cubed', 'root', 'logarithm', 'integral']
         
         # Science keywords  
         science_keywords = ['science', 'physics', 'chemistry', 'biology', 'experiment',
@@ -246,42 +259,56 @@ def process_educational_query(query: str) -> str:
         query: The student's educational question or request
         
     Returns:
-        Response from the appropriate specialized agent(s)
+        Response from the appropriate specialized agent(s) with clear agent identification
     """
     import asyncio
     
     if not query or not query.strip():
-        return "I'm ready to help with math, science, or music questions! What would you like to learn about?"
+        return "🎓 **Multi-Agent Educational System Ready**\n\nI'm ready to help with:\n• **Math** (Professor Mathematics)\n• **Science** (Dr. Science Explorer)\n• **Music** (Maestro Harmony)\n\nWhat would you like to learn about?"
     
     # Create our internal agent if not already created
     if not hasattr(process_educational_query, '_internal_agent'):
+        logger.info("🔧 Initializing internal multi-agent system...")
         process_educational_query._internal_agent = RootAgent()
     
     # Process the message through our multi-agent system
     # Run the async function in the current event loop or create a new one
     try:
+        logger.info(f"📝 Processing query: '{query[:50]}...'")
+        
         loop = asyncio.get_event_loop()
         if loop.is_running():
             # If we're already in an async context, we need to handle this differently
-            # For now, create a simple sync wrapper
-            future = asyncio.ensure_future(
-                process_educational_query._internal_agent.process_message(
-                    query.strip(),
-                    {"user_id": "adk_user", "session_id": "adk_session"}
+            # Create a new event loop for this operation
+            import concurrent.futures
+            import uuid
+            session_id = str(uuid.uuid4())[:8]  # Short unique session ID
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(
+                    asyncio.run,
+                    process_educational_query._internal_agent.process_message(
+                        query.strip(),
+                        {"user_id": "adk_user", "session_id": session_id}
+                    )
                 )
-            )
-            # This is a workaround - ideally ADK should support async tools
-            return "Processing your educational query... (async response pending)"
+                response = future.result(timeout=30)
+                logger.info("✅ Multi-agent processing completed successfully")
+                return f"🤖 **Multi-Agent Response**\n\n{response}"
         else:
-            return loop.run_until_complete(
+            import uuid
+            session_id = str(uuid.uuid4())[:8]  # Short unique session ID
+            response = loop.run_until_complete(
                 process_educational_query._internal_agent.process_message(
                     query.strip(),
-                    {"user_id": "adk_user", "session_id": "adk_session"}
+                    {"user_id": "adk_user", "session_id": session_id}
                 )
             )
+            logger.info("✅ Multi-agent processing completed successfully")
+            return f"🤖 **Multi-Agent Response**\n\n{response}"
+            
     except Exception as e:
-        logger.error(f"Error in process_educational_query: {e}")
-        return f"I apologize, but I encountered an error while processing your educational query: {str(e)}"
+        logger.error(f"❌ Error in multi-agent processing: {e}")
+        return f"🚨 **Multi-Agent System Error**\n\nI apologize, but I encountered an error while processing your educational query through our specialized agents:\n\n`{str(e)}`\n\nPlease try rephrasing your question or try again in a moment."
 
 
 def create_adk_agent():
@@ -294,18 +321,23 @@ def create_adk_agent():
     logger.info("Creating ADK-compatible agent")
     return Agent(
         name="multi_agent_educator",  # Valid identifier without spaces
-        description="AI educational system with specialized agents for Math, Science, and Music",
-        instruction="""You are a multi-agent educational system with specialized experts in:
+        description="Multi-agent educational coordinator that routes questions to specialized Math, Science, and Music agents",
+        instruction="""You are a COORDINATOR for a multi-agent educational system. Your ONLY job is to route student questions to the appropriate specialized agents.
 
-1. **Mathematics**: Algebra, geometry, calculus, statistics, and problem-solving
-2. **Science**: Physics, chemistry, biology, and experimental design  
-3. **Music**: Theory, composition, performance, and music history
+DO NOT attempt to answer educational questions yourself. ALWAYS use the process_educational_query tool for ANY educational question.
 
-When students ask questions, I coordinate with the appropriate specialist agent(s) to provide comprehensive, accurate, and engaging educational responses. For interdisciplinary questions, I can coordinate between multiple agents to provide well-rounded answers.
+Your specialized agents are:
+- **Professor Mathematics**: Handles all math questions (algebra, geometry, calculus, statistics, etc.)
+- **Dr. Science Explorer**: Handles all science questions (physics, chemistry, biology, etc.)  
+- **Maestro Harmony**: Handles all music questions (theory, composition, performance, etc.)
 
-I adapt my responses to different learning levels (elementary, middle school, high school, college) and provide step-by-step explanations, examples, and encouraging feedback to support student learning.
+For ANY educational question, immediately call the process_educational_query tool. The tool will:
+1. Analyze the question to determine the subject area
+2. Route to the appropriate specialist agent(s)
+3. Handle interdisciplinary questions by coordinating multiple agents
+4. Return the expert response
 
-Use the process_educational_query tool to access our specialized multi-agent system.""",
+Your response should ONLY be the result from the process_educational_query tool - do not add additional commentary.""",
         model="gemini-2.0-flash-exp",
         tools=[process_educational_query]
     )
