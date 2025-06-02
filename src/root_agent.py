@@ -7,8 +7,11 @@ our multi-agent educational system.
 
 from typing import Dict, List, Any, Optional
 import asyncio
+import sys
+import os
 from loguru import logger
 
+# Import from the adk_educator module in the same src directory
 from adk_educator.core.coordinator import AgentCoordinator
 from adk_educator.core.session_manager import SessionManager
 from adk_educator.agents.math_agent import MathAgent
@@ -100,19 +103,11 @@ class RootAgent:
                 response = await self.session_manager.process_student_request(request)
                 return f"**{response.agent_name}** (Confidence: {response.confidence_score:.1%})\n\n{response.response_text}"
             else:
-                # Use coordinator for interdisciplinary questions
-                responses = await self.coordinator.handle_complex_query(request)
+                # Use coordinator for interdisciplinary questions - involve all subjects
+                involving_subjects = [SubjectType.MATH, SubjectType.SCIENCE, SubjectType.MUSIC]
+                response = await self.coordinator.process_complex_query(request, involving_subjects)
                 
-                if len(responses) == 1:
-                    response = responses[0]
-                    return f"**{response.agent_name}** (Confidence: {response.confidence_score:.1%})\n\n{response.response_text}"
-                else:
-                    # Multiple agents collaborated
-                    result = "**Multi-Agent Collaboration:**\n\n"
-                    for i, response in enumerate(responses, 1):
-                        result += f"**{i}. {response.agent_name}** ({response.subject.value}):\n"
-                        result += f"{response.response_text}\n\n"
-                    return result
+                return f"**{response.agent_name}** (Confidence: {response.confidence_score:.1%})\n\n{response.response_text}"
                     
         except Exception as e:
             logger.error(f"Error processing message: {e}")
@@ -163,7 +158,7 @@ class RootAgent:
         else:
             return None  # Tied scores or ambiguous
     
-    async def get_capabilities(self) -> Dict[str, Any]:
+    def get_capabilities(self) -> Dict[str, Any]:
         """
         Get information about the agent's capabilities.
         

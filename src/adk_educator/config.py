@@ -62,7 +62,7 @@ class StudentRequest(BaseModel):
     """Represents a student's educational request."""
     session_id: str
     student_id: str
-    subject: SubjectType
+    subject: Optional[SubjectType] = None  # None for interdisciplinary questions
     topic: str
     difficulty: Optional[DifficultyLevel] = None
     specific_question: str
@@ -73,7 +73,7 @@ class StudentRequest(BaseModel):
 class AgentResponse(BaseModel):
     """Represents an agent's response to a student request."""
     agent_name: str
-    subject: SubjectType
+    subject: Optional[SubjectType] = None  # None for multi-subject responses
     response_text: str
     confidence_score: float = Field(ge=0.0, le=1.0)
     suggested_follow_ups: List[str] = Field(default_factory=list)
