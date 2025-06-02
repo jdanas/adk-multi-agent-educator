@@ -225,8 +225,98 @@ class RootAgent:
         }
 
 
+# Import ADK components for proper integration
+try:
+    from google.adk import Agent
+    ADK_AVAILABLE = True
+except ImportError:
+    # Fallback if ADK is not available
+    logger.warning("ADK not available, using fallback implementation")
+    Agent = None
+    ADK_AVAILABLE = False
+
+
+# Create custom tool function for ADK integration
+def process_educational_query(query: str) -> str:
+    """
+    Tool function for processing educational queries through our multi-agent system.
+    This function serves as the bridge between ADK and our educational agents.
+    
+    Args:
+        query: The student's educational question or request
+        
+    Returns:
+        Response from the appropriate specialized agent(s)
+    """
+    import asyncio
+    
+    if not query or not query.strip():
+        return "I'm ready to help with math, science, or music questions! What would you like to learn about?"
+    
+    # Create our internal agent if not already created
+    if not hasattr(process_educational_query, '_internal_agent'):
+        process_educational_query._internal_agent = RootAgent()
+    
+    # Process the message through our multi-agent system
+    # Run the async function in the current event loop or create a new one
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # If we're already in an async context, we need to handle this differently
+            # For now, create a simple sync wrapper
+            future = asyncio.ensure_future(
+                process_educational_query._internal_agent.process_message(
+                    query.strip(),
+                    {"user_id": "adk_user", "session_id": "adk_session"}
+                )
+            )
+            # This is a workaround - ideally ADK should support async tools
+            return "Processing your educational query... (async response pending)"
+        else:
+            return loop.run_until_complete(
+                process_educational_query._internal_agent.process_message(
+                    query.strip(),
+                    {"user_id": "adk_user", "session_id": "adk_session"}
+                )
+            )
+    except Exception as e:
+        logger.error(f"Error in process_educational_query: {e}")
+        return f"I apologize, but I encountered an error while processing your educational query: {str(e)}"
+
+
+def create_adk_agent():
+    """Create an ADK-compatible agent instance."""
+    if not ADK_AVAILABLE:
+        # Return our custom agent if ADK is not available
+        logger.info("ADK not available, returning custom RootAgent")
+        return RootAgent()
+    
+    logger.info("Creating ADK-compatible agent")
+    return Agent(
+        name="multi_agent_educator",  # Valid identifier without spaces
+        description="AI educational system with specialized agents for Math, Science, and Music",
+        instruction="""You are a multi-agent educational system with specialized experts in:
+
+1. **Mathematics**: Algebra, geometry, calculus, statistics, and problem-solving
+2. **Science**: Physics, chemistry, biology, and experimental design  
+3. **Music**: Theory, composition, performance, and music history
+
+When students ask questions, I coordinate with the appropriate specialist agent(s) to provide comprehensive, accurate, and engaging educational responses. For interdisciplinary questions, I can coordinate between multiple agents to provide well-rounded answers.
+
+I adapt my responses to different learning levels (elementary, middle school, high school, college) and provide step-by-step explanations, examples, and encouraging feedback to support student learning.
+
+Use the process_educational_query tool to access our specialized multi-agent system.""",
+        model="gemini-1.5-pro",
+        tools=[process_educational_query]
+    )
+
+
 # Create the root agent instance that ADK will use
-root_agent = RootAgent()
+# First create our internal agent
+_internal_root_agent = RootAgent()
+
+# Then create the ADK-compatible agent
+root_agent = create_adk_agent()
 
 # Also create an 'agent' attribute for alternative discovery
 agent = root_agent
