@@ -1,11 +1,5 @@
-# Core dependencies for ADK Multi-Agent Educator
-google-generativeai>=0.7.0
-pydantic>=2.0.0
-asyncio-mqtt>=0.16.0
-python-dotenv>=1.0.0
-fastapi>=0.104.0
-uvicorn>=0.24.0
-httpx>=0.25.0
-loguru>=0.7.0
-typer>=0.9.0
-rich>=13.0.0
+# ADK Multi-Agent Educator - Minimal Dependencies
+# This project is designed to work with Google ADK framework
+# For development dependencies, see requirements-dev.txt
+
+google-adk>=0.1.0
