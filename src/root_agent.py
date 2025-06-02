@@ -11,13 +11,43 @@ import sys
 import os
 from loguru import logger
 
-# Import from the adk_educator module in the same src directory
-from adk_educator.core.coordinator import AgentCoordinator
-from adk_educator.core.session_manager import SessionManager
-from adk_educator.agents.math_agent import MathAgent
-from adk_educator.agents.science_agent import ScienceAgent
-from adk_educator.agents.music_agent import MusicAgent
-from adk_educator.config import StudentRequest, SubjectType, DifficultyLevel
+# Ensure the correct path is available for imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Try different import strategies to handle different ADK import scenarios
+try:
+    # First try: assume we're imported from project root (ADK scenario)
+    from adk_educator.core.coordinator import AgentCoordinator
+    from adk_educator.core.session_manager import SessionManager
+    from adk_educator.agents.math_agent import MathAgent
+    from adk_educator.agents.science_agent import ScienceAgent
+    from adk_educator.agents.music_agent import MusicAgent
+    from adk_educator.config import StudentRequest, SubjectType, DifficultyLevel
+except ImportError:
+    # Second try: add src directory to path and import
+    src_dir = current_dir
+    if src_dir not in sys.path:
+        sys.path.insert(0, src_dir)
+    
+    try:
+        from adk_educator.core.coordinator import AgentCoordinator
+        from adk_educator.core.session_manager import SessionManager
+        from adk_educator.agents.math_agent import MathAgent
+        from adk_educator.agents.science_agent import ScienceAgent
+        from adk_educator.agents.music_agent import MusicAgent
+        from adk_educator.config import StudentRequest, SubjectType, DifficultyLevel
+    except ImportError:
+        # Third try: add parent directory to path (when src is imported as module)
+        parent_dir = os.path.dirname(src_dir)
+        if parent_dir not in sys.path:
+            sys.path.insert(0, parent_dir)
+        
+        from src.adk_educator.core.coordinator import AgentCoordinator
+        from src.adk_educator.core.session_manager import SessionManager
+        from src.adk_educator.agents.math_agent import MathAgent
+        from src.adk_educator.agents.science_agent import ScienceAgent
+        from src.adk_educator.agents.music_agent import MusicAgent
+        from src.adk_educator.config import StudentRequest, SubjectType, DifficultyLevel
 
 
 class RootAgent:
