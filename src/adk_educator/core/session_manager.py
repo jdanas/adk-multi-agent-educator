@@ -123,8 +123,10 @@ class SessionManager:
             session = self.sessions.get(request.session_id)
             if not session:
                 logger.warning(f"Session {request.session_id} not found, creating new session")
-                self.create_session(request.student_id)
-                session = self.sessions[request.session_id]
+                new_session_id = self.create_session(request.student_id)
+                session = self.sessions[new_session_id]
+                # Update the request session_id to match the created session
+                request.session_id = new_session_id
             
             session.last_activity = time.time()
             session.active_subjects.add(request.subject)
