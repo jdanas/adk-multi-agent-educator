@@ -1,0 +1,14 @@
+# Development dependencies for ADK Multi-Agent Educator
+-r requirements.txt
+
+# Testing
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
+
+# Code formatting and linting
+black>=23.0.0
+ruff>=0.1.0
+mypy>=1.0.0
+
+# Git hooks
+pre-commit>=3.0.0
