@@ -16,7 +16,7 @@
 
 from google.adk.agents import LlmAgent
 
-MODEL = "ggemini-2.5-flash-preview-05-20"
+MODEL = "gemini-2.5-flash-preview-05-20"
 
 SCIENCE_AGENT_PROMPT = """
 You are a specialized Science Education Agent. Your role is to:
