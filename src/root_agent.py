@@ -249,66 +249,153 @@ except ImportError:
     ADK_AVAILABLE = False
 
 
-# Create custom tool function for ADK integration
-def process_educational_query(query: str) -> str:
+class MultiAgentEducatorADK:
     """
-    Tool function for processing educational queries through our multi-agent system.
-    This function serves as the bridge between ADK and our educational agents.
-    
-    Args:
-        query: The student's educational question or request
-        
-    Returns:
-        Response from the appropriate specialized agent(s) with clear agent identification
+    ADK-compatible agent that integrates with our multi-agent educational system.
+    This agent provides clean string responses without JSON wrappers.
     """
-    import asyncio
     
-    if not query or not query.strip():
-        return "🎓 **Multi-Agent Educational System Ready**\n\nI'm ready to help with:\n• **Math** (Professor Mathematics)\n• **Science** (Dr. Science Explorer)\n• **Music** (Maestro Harmony)\n\nWhat would you like to learn about?"
+    def __init__(self):
+        self.name = "multi_agent_educator"
+        self.description = "Multi-agent educational coordinator that routes questions to specialized Math, Science, and Music agents"
+        self._internal_agent = RootAgent()
+        self._capabilities = {
+            "subjects": ["mathematics", "science", "music"],
+            "agents": ["Professor Mathematics", "Dr. Science Explorer", "Maestro Harmony"],
+            "features": ["subject_routing", "multi_agent_coordination", "interdisciplinary_queries"]
+        }
+        logger.info("🎓 MultiAgentEducatorADK initialized")
     
-    # Create our internal agent if not already created
-    if not hasattr(process_educational_query, '_internal_agent'):
-        logger.info("🔧 Initializing internal multi-agent system...")
-        process_educational_query._internal_agent = RootAgent()
+    def get_capabilities(self):
+        """Return capabilities for ADK integration."""
+        return self._capabilities
     
-    # Process the message through our multi-agent system
-    # Run the async function in the current event loop or create a new one
-    try:
-        logger.info(f"📝 Processing query: '{query[:50]}...'")
-        
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            # If we're already in an async context, we need to handle this differently
-            # Create a new event loop for this operation
-            import concurrent.futures
-            import uuid
-            session_id = str(uuid.uuid4())[:8]  # Short unique session ID
-            with concurrent.futures.ThreadPoolExecutor() as executor:
-                future = executor.submit(
-                    asyncio.run,
-                    process_educational_query._internal_agent.process_message(
-                        query.strip(),
-                        {"user_id": "adk_user", "session_id": session_id}
-                    )
-                )
-                response = future.result(timeout=30)
-                logger.info("✅ Multi-agent processing completed successfully")
-                return f"🤖 **Multi-Agent Response**\n\n{response}"
-        else:
-            import uuid
-            session_id = str(uuid.uuid4())[:8]  # Short unique session ID
-            response = loop.run_until_complete(
-                process_educational_query._internal_agent.process_message(
-                    query.strip(),
-                    {"user_id": "adk_user", "session_id": session_id}
-                )
-            )
-            logger.info("✅ Multi-agent processing completed successfully")
-            return f"🤖 **Multi-Agent Response**\n\n{response}"
+    async def process_message(self, message: str, context=None):
+        """Compatibility method for process_message interface."""
+        ctx = context or {}
+        response = await self._internal_agent.process_message(message, ctx)
+        return response
+    
+    async def run_async(self, parent_context):
+        """
+        ADK-compatible run_async method that expects InvocationContext.
+        This is the proper interface for ADK integration.
+        """
+        try:
+            # Import ADK classes
+            from google.adk.events.event import LlmResponse
+            from google.genai.types import Content, Part
             
-    except Exception as e:
-        logger.error(f"❌ Error in multi-agent processing: {e}")
-        return f"🚨 **Multi-Agent System Error**\n\nI apologize, but I encountered an error while processing your educational query through our specialized agents:\n\n`{str(e)}`\n\nPlease try rephrasing your question or try again in a moment."
+            logger.info("🎯 ADK agent called with InvocationContext")
+            
+            # Extract the message from the context
+            message = ""
+            session_id = "default"
+            
+            # Try to get the user message from the context
+            if hasattr(parent_context, 'session') and hasattr(parent_context.session, 'contents'):
+                # Get the last user message
+                for content in reversed(parent_context.session.contents):
+                    if hasattr(content, 'role') and content.role == 'user':
+                        if hasattr(content, 'parts') and content.parts:
+                            # Extract text from the Part
+                            for part in content.parts:
+                                if hasattr(part, 'text') and part.text:
+                                    message = part.text
+                                    break
+                        break
+            
+            if hasattr(parent_context, 'session') and hasattr(parent_context.session, 'id'):
+                session_id = parent_context.session.id
+            
+            logger.info(f"📝 Extracted message: '{message[:50]}...'")
+            
+            if not message:
+                response_text = "🎓 **Multi-Agent Educational System Ready**\n\nI'm ready to help with:\n• **Math** (Professor Mathematics)\n• **Science** (Dr. Science Explorer)\n• **Music** (Maestro Harmony)\n\nWhat would you like to learn about?"
+            else:
+                # Process through our multi-agent system
+                ctx = {"session_id": session_id}
+                response_text = await self._internal_agent.process_message(message, ctx)
+            
+            # Create a proper ADK LlmResponse with the response
+            part = Part(text=response_text)
+            content = Content(parts=[part], role="model")
+            llm_response = LlmResponse(
+                content=content,
+                turn_complete=True,
+                usage_metadata=None  # Optional
+            )
+            
+            logger.info("✅ ADK LlmResponse created successfully")
+            yield llm_response
+            
+        except Exception as e:
+            logger.error(f"❌ Error in ADK agent: {e}")
+            try:
+                from google.adk.events.event import LlmResponse
+                from google.genai.types import Content, Part
+                
+                error_response = f"🚨 **Educational System Error**\n\nI apologize, but I encountered an error while processing your educational query:\n\n`{str(e)}`\n\nPlease try rephrasing your question or try again in a moment."
+                part = Part(text=error_response)
+                content = Content(parts=[part], role="model")
+                llm_response = LlmResponse(
+                    content=content,
+                    turn_complete=True,
+                    usage_metadata=None
+                )
+                yield llm_response
+            except Exception as inner_e:
+                # Fallback if LlmResponse creation fails
+                logger.error(f"Failed to create error response: {inner_e}")
+                raise e
+    
+    def run_live(self, message: str, context=None):
+        """
+        Synchronous version for compatibility with different ADK interfaces.
+        Returns a list with the response.
+        """
+        try:
+            import asyncio
+            
+            logger.info(f"🎯 ADK sync processing: '{message[:50]}...'")
+            
+            # Extract context or use defaults
+            ctx = context or {}
+            if isinstance(ctx, str):
+                ctx = {"session_id": ctx}
+            
+            # Handle event loop scenarios
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # Create new event loop in thread if one is already running
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(
+                            asyncio.run,
+                            self._internal_agent.process_message(message, ctx)
+                        )
+                        response = future.result(timeout=30)
+                        logger.info("✅ ADK sync response ready")
+                        return [response]
+                else:
+                    response = loop.run_until_complete(
+                        self._internal_agent.process_message(message, ctx)
+                    )
+                    logger.info("✅ ADK sync response ready")
+                    return [response]
+            except RuntimeError:
+                # No event loop exists, create one
+                response = asyncio.run(
+                    self._internal_agent.process_message(message, ctx)
+                )
+                logger.info("✅ ADK sync response ready")
+                return [response]
+                
+        except Exception as e:
+            logger.error(f"❌ Error in ADK sync agent: {e}")
+            error_response = f"🚨 **Educational System Error**\n\nI apologize, but I encountered an error while processing your educational query:\n\n`{str(e)}`\n\nPlease try rephrasing your question or try again in a moment."
+            return [error_response]
 
 
 def create_adk_agent():
@@ -318,37 +405,36 @@ def create_adk_agent():
         logger.info("ADK not available, returning custom RootAgent")
         return RootAgent()
     
-    logger.info("Creating ADK-compatible agent")
-    return Agent(
-        name="multi_agent_educator",  # Valid identifier without spaces
-        description="Multi-agent educational coordinator that routes questions to specialized Math, Science, and Music agents",
-        instruction="""You are a COORDINATOR for a multi-agent educational system. Your ONLY job is to route student questions to the appropriate specialized agents.
-
-DO NOT attempt to answer educational questions yourself. ALWAYS use the process_educational_query tool for ANY educational question.
-
-Your specialized agents are:
-- **Professor Mathematics**: Handles all math questions (algebra, geometry, calculus, statistics, etc.)
-- **Dr. Science Explorer**: Handles all science questions (physics, chemistry, biology, etc.)  
-- **Maestro Harmony**: Handles all music questions (theory, composition, performance, etc.)
-
-For ANY educational question, immediately call the process_educational_query tool. The tool will:
-1. Analyze the question to determine the subject area
-2. Route to the appropriate specialist agent(s)
-3. Handle interdisciplinary questions by coordinating multiple agents
-4. Return the expert response
-
-Your response should ONLY be the result from the process_educational_query tool - do not add additional commentary.""",
-        model="gemini-2.0-flash-exp",
-        tools=[process_educational_query]
-    )
+    logger.info("🔧 Creating ADK-compatible multi-agent educator")
+    
+    # Use our custom ADK-compatible agent that provides clean responses
+    return MultiAgentEducatorADK()
 
 
 # Create the root agent instance that ADK will use
 # First create our internal agent
 _internal_root_agent = RootAgent()
 
-# Then create the ADK-compatible agent
-root_agent = create_adk_agent()
+# Then create the ADK-compatible agent (this will be used by ADK discovery)
+try:
+    if ADK_AVAILABLE:
+        # For ADK integration, create our custom agent
+        agent = create_adk_agent()
+        root_agent = agent  # Alternative name for discovery
+        root_agent_instance = agent  # Another alternative
+        
+        logger.info("✅ ADK integration ready - Multi-Agent Educational System loaded")
+        logger.info("🎓 Available agents: Professor Mathematics, Dr. Science Explorer, Maestro Harmony")
+    else:
+        # Fallback when ADK is not available
+        agent = _internal_root_agent
+        root_agent = _internal_root_agent
+        root_agent_instance = _internal_root_agent
+        logger.info("📚 Standard mode - Multi-Agent Educational System ready")
 
-# Also create an 'agent' attribute for alternative discovery
-agent = root_agent
+except Exception as e:
+    logger.error(f"Error creating ADK agent: {e}")
+    # Fallback to our custom agent
+    agent = MultiAgentEducatorADK()
+    root_agent = agent
+    root_agent_instance = agent
