@@ -39,7 +39,7 @@ class AgentConfig(BaseModel):
     """Configuration for individual agents."""
     name: str
     subject: SubjectType
-    model: str = Field(default_factory=lambda: os.getenv("DEFAULT_MODEL", "gemini-1.5-flash"))
+    model: str = Field(default_factory=lambda: os.getenv("DEFAULT_MODEL", "gemini-2.0-flash"))
     temperature: float = Field(default_factory=lambda: float(os.getenv("TEMPERATURE", "0.7")))
     max_tokens: int = Field(default_factory=lambda: int(os.getenv("MAX_TOKENS", "2048")))
     specializations: List[str] = Field(default_factory=list)
@@ -86,7 +86,7 @@ class SystemConfig:
     """System-wide configuration."""
     
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-    DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "gemini-1.5-flash")
+    DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "gemini-2.0-flash")
     TEMPERATURE = float(os.getenv("TEMPERATURE", "0.7"))
     MAX_TOKENS = int(os.getenv("MAX_TOKENS", "2048"))
     
