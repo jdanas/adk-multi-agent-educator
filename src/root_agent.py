@@ -306,7 +306,7 @@ When students ask questions, I coordinate with the appropriate specialist agent(
 I adapt my responses to different learning levels (elementary, middle school, high school, college) and provide step-by-step explanations, examples, and encouraging feedback to support student learning.
 
 Use the process_educational_query tool to access our specialized multi-agent system.""",
-        model="gemini-2.0-flash",
+        model="gemini-2.0-flash-exp",
         tools=[process_educational_query]
     )
 
