@@ -290,12 +290,51 @@ def main():
     tokenized_dataset = format_dataset(dataset, tokenizer)
     
     # Setup LoRA for efficient training
-    lora_config = setup_lora_config(model)
-    model = get_peft_model(model, lora_config)
+    try:
+        lora_config = setup_lora_config(model)
+        model = get_peft_model(model, lora_config)
+        print("✅ LoRA adapters applied successfully")
+        
+        # Verify LoRA was applied correctly
+        lora_applied = any("lora" in name.lower() for name, _ in model.named_parameters())
+        if not lora_applied:
+            raise ValueError("LoRA adapters were not applied correctly")
+            
+    except Exception as e:
+        print(f"❌ LoRA setup failed: {e}")
+        print("🔄 Trying alternative LoRA configuration...")
+        
+        # Fallback: simpler LoRA config
+        fallback_config = LoraConfig(
+            task_type=TaskType.CAUSAL_LM,
+            r=8,
+            lora_alpha=16,
+            lora_dropout=0.1,
+            target_modules="all-linear",
+            bias="none",
+        )
+        
+        try:
+            model = get_peft_model(model, fallback_config)
+            print("✅ Fallback LoRA configuration applied")
+        except Exception as e2:
+            print(f"❌ Fallback LoRA also failed: {e2}")
+            print("💡 Continuing with full fine-tuning (will use more memory)")
+            # Continue without LoRA - will fine-tune all parameters
     
-    print(f"📈 Trainable parameters: {model.print_trainable_parameters()}")
+    # Print trainable parameters info
+    try:
+        trainable_params = model.print_trainable_parameters()
+        print(f"📈 Trainable parameters: {trainable_params}")
+    except:
+        # Alternative way to check trainable parameters
+        total_params = sum(p.numel() for p in model.parameters())
+        trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        print(f"📈 Total parameters: {total_params:,}")
+        print(f"📈 Trainable parameters: {trainable_params:,}")
+        print(f"📈 Trainable %: {100 * trainable_params / total_params:.2f}%")
     
-    # Training arguments optimized for Mac M4
+    # Training arguments optimized for Mac M4 (fixed compatibility)
     training_args = TrainingArguments(
         output_dir=OUTPUT_DIR,
         per_device_train_batch_size=1,  # Small batch for Mac memory
@@ -309,9 +348,9 @@ def main():
         remove_unused_columns=False,
         dataloader_pin_memory=False,  # Better for Mac
         fp16=True,  # Mixed precision for efficiency
-        report_to=None,  # Disable wandb/tensorboard
+        report_to="none",  # Disable wandb/tensorboard (fixed)
         load_best_model_at_end=False,
-        evaluation_strategy="no",
+        # Removed evaluation_strategy as it's not available in this version
         push_to_hub=False,
     )
     
