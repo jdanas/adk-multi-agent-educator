@@ -54,6 +54,12 @@ def load_model_and_tokenizer():
         print(f"✅ Model loaded successfully")
         print(f"📊 Model parameters: {model.num_parameters():,}")
         
+        # Print model architecture for debugging
+        print("🔍 Model architecture (first few layers):")
+        for name, module in list(model.named_modules())[:10]:
+            if hasattr(module, 'weight'):
+                print(f"   {name}: {type(module).__name__}")
+        
         return model, tokenizer
         
     except Exception as e:
@@ -152,19 +158,75 @@ You are a specialized English Language Education Agent. Your role is to help stu
     
     return tokenized_dataset
 
-def setup_lora_config():
-    """Configure LoRA for efficient fine-tuning"""
+def find_target_modules(model):
+    """Find the correct target modules for LoRA in the model"""
+    target_modules = []
+    
+    print("🔍 Scanning model architecture for LoRA targets...")
+    for name, module in model.named_modules():
+        if hasattr(module, 'weight') and len(module.weight.shape) == 2:  # Linear layers
+            module_name = name.split('.')[-1]
+            target_modules.append(module_name)
+            print(f"   Found: {name} -> {module_name}")
+    
+    # Remove duplicates and get unique module names
+    unique_modules = list(set(target_modules))
+    
+    # Prefer attention-related modules if available
+    attention_modules = [mod for mod in unique_modules if any(
+        pattern in mod.lower() for pattern in ['attn', 'attention', 'query', 'key', 'value', 'proj', 'dense', 'c_attn', 'c_proj']
+    )]
+    
+    # If we found attention modules, use them; otherwise use any linear modules
+    if attention_modules:
+        final_modules = attention_modules[:4]  # Limit to first 4
+        print(f"✅ Using attention modules: {final_modules}")
+    else:
+        # Use the first few linear modules
+        final_modules = unique_modules[:4]
+        print(f"⚠️ No attention modules found, using linear modules: {final_modules}")
+    
+    return final_modules
+
+def setup_lora_config(model):
+    """Configure LoRA for efficient fine-tuning with correct target modules"""
     print("⚙️ Setting up LoRA configuration...")
     
-    return LoraConfig(
-        task_type=TaskType.CAUSAL_LM,
-        r=16,  # Rank - balance between efficiency and quality
-        lora_alpha=32,  # Scaling factor
-        lora_dropout=0.1,  # Regularization
-        target_modules=["q_proj", "v_proj", "k_proj", "o_proj"],  # Attention layers
-        bias="none",
-        inference_mode=False,
-    )
+    try:
+        # Find the correct target modules for this model
+        target_modules = find_target_modules(model)
+        
+        if not target_modules:
+            # Fallback: use all linear layers (less efficient but works)
+            print("⚠️ Falling back to all linear layers...")
+            target_modules = "all-linear"
+        
+        print(f"🎯 LoRA target modules: {target_modules}")
+        
+        return LoraConfig(
+            task_type=TaskType.CAUSAL_LM,
+            r=8,  # Reduced rank for more compatibility
+            lora_alpha=16,  # Reduced alpha
+            lora_dropout=0.1,
+            target_modules=target_modules,
+            bias="none",
+            inference_mode=False,
+        )
+        
+    except Exception as e:
+        print(f"❌ Error setting up LoRA config: {e}")
+        print("💡 Trying minimal LoRA configuration...")
+        
+        # Minimal fallback configuration
+        return LoraConfig(
+            task_type=TaskType.CAUSAL_LM,
+            r=4,  # Very small rank
+            lora_alpha=8,
+            lora_dropout=0.0,
+            target_modules="all-linear",  # Target all linear layers
+            bias="none",
+            inference_mode=False,
+        )
 
 def test_finetuned_model(model, tokenizer):
     """Test the fine-tuned model with sample questions"""
@@ -228,7 +290,7 @@ def main():
     tokenized_dataset = format_dataset(dataset, tokenizer)
     
     # Setup LoRA for efficient training
-    lora_config = setup_lora_config()
+    lora_config = setup_lora_config(model)
     model = get_peft_model(model, lora_config)
     
     print(f"📈 Trainable parameters: {model.print_trainable_parameters()}")
