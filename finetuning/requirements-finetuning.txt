@@ -1,0 +1,26 @@
+# Fine-tuning specific requirements
+# These are additional to the main requirements.txt
+
+# Core fine-tuning dependencies
+unsloth[cu121-torch240]  # Adjust based on your CUDA/torch version
+transformers>=4.36.0
+datasets>=2.14.0
+accelerate>=0.24.0
+peft>=0.7.0
+trl>=0.7.4
+bitsandbytes>=0.41.0
+
+# Data processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Optional: For evaluation and metrics
+scikit-learn>=1.3.0
+evaluate>=0.4.0
+
+# Optional: For wandb logging
+# wandb>=0.16.0
+
+# Optional: For better data visualization
+# matplotlib>=3.7.0
+# seaborn>=0.12.0
