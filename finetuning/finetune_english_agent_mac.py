@@ -347,10 +347,10 @@ def main():
         save_total_limit=2,
         remove_unused_columns=False,
         dataloader_pin_memory=False,  # Better for Mac
-        fp16=True,  # Mixed precision for efficiency
-        report_to="none",  # Disable wandb/tensorboard (fixed)
+        fp16=False,  # Disable fp16 for MPS compatibility
+        bf16=False,  # Disable bf16 for MPS compatibility
+        report_to="none",  # Disable wandb/tensorboard
         load_best_model_at_end=False,
-        # Removed evaluation_strategy as it's not available in this version
         push_to_hub=False,
     )
     
@@ -366,7 +366,7 @@ def main():
         args=training_args,
         train_dataset=tokenized_dataset,
         data_collator=data_collator,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,  # Use processing_class instead of tokenizer
     )
     
     # Start training
